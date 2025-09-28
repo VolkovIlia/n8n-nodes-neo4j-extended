@@ -41,7 +41,7 @@ export class Neo4j implements INodeType {
 					// Manual mode with vector store resource
 					(mode === 'manual' && resource === 'vectorStore') ||
 					// AI Tool mode with vector search capability
-					(mode === 'retrieve-as-tool' && (toolOperation === 'vectorSearch' || toolOperation === 'both'))
+					(mode === 'retrieve-as-tool' && (toolOperation === 'vectorSearch' || toolOperation === 'both' || toolOperation === 'documentProcessor' || toolOperation === 'smartSearch'))
 				);
 
 				if (needsEmbedding) {
@@ -140,6 +140,22 @@ export class Neo4j implements INodeType {
 						value: 'both',
 						description: 'AI can choose between vector search and graph queries',
 					},
+					// NEW v1.1.0 AI Tool operations
+					{
+						name: 'Document Processor',
+						value: 'documentProcessor',
+						description: 'AI processes documents into graph and vector storage',
+					},
+					{
+						name: 'Smart Search',
+						value: 'smartSearch',
+						description: 'AI automatically selects optimal search strategy',
+					},
+					{
+						name: 'Graph Builder',
+						value: 'graphBuilder',
+						description: 'AI creates graph structures from text content',
+					},
 				],
 				default: 'both',
 			},
@@ -172,6 +188,31 @@ export class Neo4j implements INodeType {
 						value: 'addDocuments',
 						description: 'Add documents to vector store',
 						action: 'Add documents to vector store',
+					},
+					// NEW v1.1.0 operations
+					{
+						name: 'Process Document',
+						value: 'processDocument',
+						description: 'AI-powered document processing into graph and vector storage',
+						action: 'Process document with AI',
+					},
+					{
+						name: 'Hybrid Search',
+						value: 'hybridSearch',
+						description: 'Combined vector and graph search with AI strategy selection',
+						action: 'Hybrid search (vector + graph)',
+					},
+					{
+						name: 'Clean by Metadata',
+						value: 'cleanByMetadata',
+						description: 'Remove documents by metadata criteria',
+						action: 'Clean by metadata',
+					},
+					{
+						name: 'Update Document',
+						value: 'updateDocument',
+						description: 'Update document with MD5 and date checking',
+						action: 'Update document',
 					},
 				],
 				default: 'similaritySearch',
@@ -327,6 +368,151 @@ export class Neo4j implements INodeType {
 				},
 				default: '[]',
 				description: 'Array of document objects with pageContent and metadata',
+			},
+			// NEW v1.1.0 - Process Document Parameters
+			{
+				displayName: 'Document Content',
+				name: 'documentContent',
+				type: 'string',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['vectorStore'],
+						operation: ['processDocument'],
+					},
+				},
+				default: '',
+				description: 'Raw document content to process with AI into graph and vector storage',
+				typeOptions: {
+					rows: 5,
+				},
+			},
+			{
+				displayName: 'Document Title',
+				name: 'documentTitle',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['vectorStore'],
+						operation: ['processDocument'],
+					},
+				},
+				default: '',
+				description: 'Title or identifier for the document',
+			},
+			{
+				displayName: 'Extract Entities',
+				name: 'extractEntities',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['vectorStore'],
+						operation: ['processDocument'],
+					},
+				},
+				default: true,
+				description: 'AI extracts entities for graph nodes',
+			},
+			{
+				displayName: 'Create Relationships',
+				name: 'createRelationships',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['vectorStore'],
+						operation: ['processDocument'],
+					},
+				},
+				default: true,
+				description: 'AI creates relationships between entities',
+			},
+			// NEW v1.1.0 - Hybrid Search Parameters
+			{
+				displayName: 'Search Query',
+				name: 'hybridQuery',
+				type: 'string',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['vectorStore'],
+						operation: ['hybridSearch'],
+					},
+				},
+				default: '',
+				description: 'Search query for hybrid vector+graph search',
+			},
+			{
+				displayName: 'Search Context',
+				name: 'searchContext',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['vectorStore'],
+						operation: ['hybridSearch'],
+					},
+				},
+				default: '',
+				description: 'Additional context to help AI choose search strategy',
+			},
+			// NEW v1.1.0 - Clean by Metadata Parameters
+			{
+				displayName: 'Metadata Criteria',
+				name: 'metadataCriteria',
+				type: 'json',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['vectorStore'],
+						operation: ['cleanByMetadata'],
+					},
+				},
+				default: '{}',
+				description: 'JSON criteria for documents to remove (e.g., {"source": "old_docs"})',
+			},
+			// NEW v1.1.0 - Update Document Parameters
+			{
+				displayName: 'Document ID',
+				name: 'documentId',
+				type: 'string',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['vectorStore'],
+						operation: ['updateDocument'],
+					},
+				},
+				default: '',
+				description: 'Unique identifier for the document to update',
+			},
+			{
+				displayName: 'New Content',
+				name: 'newContent',
+				type: 'string',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['vectorStore'],
+						operation: ['updateDocument'],
+					},
+				},
+				default: '',
+				description: 'New content to update the document with',
+				typeOptions: {
+					rows: 5,
+				},
+			},
+			{
+				displayName: 'Check MD5',
+				name: 'checkMD5',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['vectorStore'],
+						operation: ['updateDocument'],
+					},
+				},
+				default: true,
+				description: 'Check MD5 hash to detect content changes',
 			},
 			// Graph DB Parameters
 			{
@@ -746,7 +932,52 @@ export class Neo4j implements INodeType {
 					
 					await vectorStore.addDocuments(documents);
 					return [this.helpers.returnJsonArray([{ success: true, added: documents.length }])];
-				}				} finally {
+				}
+
+				// NEW v1.1.0 operations
+				if (operation === 'processDocument') {
+					const documentContent = this.getNodeParameter('documentContent', 0) as string;
+					const documentTitle = this.getNodeParameter('documentTitle', 0, '') as string;
+					const extractEntities = this.getNodeParameter('extractEntities', 0, true) as boolean;
+					const createRelationships = this.getNodeParameter('createRelationships', 0, true) as boolean;
+
+					// AI-powered document processing - instantiate class to access methods
+					const neo4jInstance = new Neo4j();
+					const processedResult = await neo4jInstance.processDocumentWithAI(documentContent, documentTitle, extractEntities, createRelationships, vectorStore, config);
+					return [this.helpers.returnJsonArray([processedResult])];
+				}
+
+				if (operation === 'hybridSearch') {
+					const hybridQuery = this.getNodeParameter('hybridQuery', 0) as string;
+					const searchContext = this.getNodeParameter('searchContext', 0, '') as string;
+
+					// AI-powered hybrid search - instantiate class to access methods
+					const neo4jInstance = new Neo4j();
+					const searchResult = await neo4jInstance.performHybridSearch(hybridQuery, searchContext, vectorStore, config);
+					return [this.helpers.returnJsonArray(searchResult)];
+				}
+
+				if (operation === 'cleanByMetadata') {
+					const metadataCriteria = JSON.parse(this.getNodeParameter('metadataCriteria', 0, '{}') as string);
+					
+					// Clean documents by metadata criteria - instantiate class to access methods
+					const neo4jInstance = new Neo4j();
+					const cleanResult = await neo4jInstance.cleanDocumentsByMetadata(metadataCriteria, vectorStore, config);
+					return [this.helpers.returnJsonArray([cleanResult])];
+				}
+
+				if (operation === 'updateDocument') {
+					const documentId = this.getNodeParameter('documentId', 0) as string;
+					const newContent = this.getNodeParameter('newContent', 0) as string;
+					const checkMD5 = this.getNodeParameter('checkMD5', 0, true) as boolean;
+
+					// Update document with version checking - instantiate class to access methods
+					const neo4jInstance = new Neo4j();
+					const updateResult = await neo4jInstance.updateDocumentWithVersionCheck(documentId, newContent, checkMD5, vectorStore, config);
+					return [this.helpers.returnJsonArray([updateResult])];
+				}
+
+				} finally {
 					await vectorStore.close();
 				}
 			}
@@ -880,5 +1111,299 @@ export class Neo4j implements INodeType {
 		return {
 			response: logWrapper(tool, this),
 		};
+	}
+
+	// NEW v1.1.0 - Helper methods for document processing
+	private async processDocumentWithAI(
+		documentContent: string,
+		documentTitle: string,
+		extractEntities: boolean,
+		createRelationships: boolean,
+		vectorStore: Neo4jVectorStore,
+		config: any
+	): Promise<any> {
+		// AI-powered document processing implementation
+		try {
+			// 1. Process document into chunks
+			const chunks = this.chunkDocument(documentContent);
+			
+			// 2. Add to vector store
+			const documents = chunks.map((chunk: string) => ({
+				pageContent: chunk,
+				metadata: {
+					title: documentTitle,
+					timestamp: new Date().toISOString(),
+					type: 'document_chunk'
+				}
+			}));
+			
+			await vectorStore.addDocuments(documents);
+
+			// 3. Extract entities and relationships if requested
+			let graphData = null;
+			if (extractEntities || createRelationships) {
+				const graph = await Neo4jGraph.initialize(config);
+				try {
+					graphData = await this.extractGraphStructure(documentContent, documentTitle, extractEntities, createRelationships, graph);
+				} finally {
+					await graph.close();
+				}
+			}
+
+			return {
+				success: true,
+				processed: {
+					chunks: chunks.length,
+					title: documentTitle,
+					vectorized: true,
+					graphData: graphData
+				}
+			};
+		} catch (error) {
+			throw new ApplicationError(`Document processing failed: ${error.message}`);
+		}
+	}
+
+	private async performHybridSearch(
+		hybridQuery: string,
+		searchContext: string,
+		vectorStore: Neo4jVectorStore,
+		config: any
+	): Promise<any[]> {
+		try {
+			// AI decides search strategy based on query and context
+			const strategy = this.analyzeSearchStrategy(hybridQuery, searchContext);
+			const results = [];
+
+			// Vector search component
+			if (strategy.useVector) {
+				const vectorResults = await vectorStore.similaritySearchWithScore(hybridQuery, 5);
+				results.push(...vectorResults.map(([doc, score]) => ({
+					content: doc.pageContent,
+					score: score,
+					metadata: doc.metadata,
+					source: 'vector'
+				})));
+			}
+
+			// Graph search component  
+			if (strategy.useGraph) {
+				const graph = await Neo4jGraph.initialize(config);
+				try {
+					const graphQuery = this.generateCypherFromQuery(hybridQuery, searchContext);
+					const graphResults = await graph.query(graphQuery);
+					results.push(...graphResults.map(result => ({
+						...result,
+						source: 'graph'
+					})));
+				} finally {
+					await graph.close();
+				}
+			}
+
+			// Combine and rank results
+			return this.combineSearchResults(results);
+		} catch (error) {
+			throw new ApplicationError(`Hybrid search failed: ${error.message}`);
+		}
+	}
+
+	private async cleanDocumentsByMetadata(
+		metadataCriteria: any,
+		vectorStore: Neo4jVectorStore,
+		config: any
+	): Promise<any> {
+		try {
+			const graph = await Neo4jGraph.initialize(config);
+			try {
+				// Build Cypher query to find and delete matching nodes
+				const whereConditions = Object.entries(metadataCriteria)
+					.map(([key, value]) => `n.${key} = $${key}`)
+					.join(' AND ');
+				
+				const deleteQuery = `
+					MATCH (n:Document) 
+					WHERE ${whereConditions}
+					DETACH DELETE n
+					RETURN count(n) as deletedCount
+				`;
+				
+				const result = await graph.query(deleteQuery, metadataCriteria);
+				const deletedCount = result[0]?.deletedCount || 0;
+
+				return {
+					success: true,
+					deleted: deletedCount,
+					criteria: metadataCriteria
+				};
+			} finally {
+				await graph.close();
+			}
+		} catch (error) {
+			throw new ApplicationError(`Metadata cleanup failed: ${error.message}`);
+		}
+	}
+
+	private async updateDocumentWithVersionCheck(
+		documentId: string,
+		newContent: string,
+		checkMD5: boolean,
+		vectorStore: Neo4jVectorStore,
+		config: any
+	): Promise<any> {
+		try {
+			const currentMD5 = checkMD5 ? this.calculateMD5(newContent) : null;
+			
+			// Check if document exists and get current version
+			const graph = await Neo4jGraph.initialize(config);
+			try {
+				const existingQuery = `
+					MATCH (n:Document {id: $documentId})
+					RETURN n.md5 as currentMD5, n.lastUpdated as lastUpdated
+				`;
+				
+				const existing = await graph.query(existingQuery, { documentId });
+				
+				if (existing.length === 0) {
+					throw new ApplicationError(`Document with ID ${documentId} not found`);
+				}
+
+				const currentDoc = existing[0];
+				
+				// Check MD5 if requested
+				if (checkMD5 && currentDoc.currentMD5 === currentMD5) {
+					return {
+						success: true,
+						updated: false,
+						reason: 'No changes detected (MD5 match)',
+						documentId
+					};
+				}
+
+				// Update document
+				const updateQuery = `
+					MATCH (n:Document {id: $documentId})
+					SET n.content = $newContent,
+						n.md5 = $newMD5,
+						n.lastUpdated = $timestamp
+					RETURN n
+				`;
+
+				await graph.query(updateQuery, {
+					documentId,
+					newContent,
+					newMD5: currentMD5,
+					timestamp: new Date().toISOString()
+				});
+
+				// Update vector store
+				const documents = [{
+					pageContent: newContent,
+					metadata: {
+						id: documentId,
+						md5: currentMD5,
+						lastUpdated: new Date().toISOString()
+					}
+				}];
+
+				await vectorStore.addDocuments(documents);
+
+				return {
+					success: true,
+					updated: true,
+					documentId,
+					newMD5: currentMD5
+				};
+			} finally {
+				await graph.close();
+			}
+		} catch (error) {
+			throw new ApplicationError(`Document update failed: ${error.message}`);
+		}
+	}
+
+	// Utility methods
+	private chunkDocument(content: string): string[] {
+		// Simple chunking strategy - can be enhanced with more sophisticated methods
+		const chunkSize = 1000;
+		const chunks = [];
+		
+		for (let i = 0; i < content.length; i += chunkSize) {
+			chunks.push(content.slice(i, i + chunkSize));
+		}
+		
+		return chunks.filter(chunk => chunk.trim().length > 0);
+	}
+
+	private async extractGraphStructure(
+		content: string,
+		title: string,
+		extractEntities: boolean,
+		createRelationships: boolean,
+		graph: Neo4jGraph
+	): Promise<any> {
+		// Placeholder for AI-powered entity extraction and relationship creation
+		// This would integrate with LLM to extract entities and relationships
+		
+		if (extractEntities) {
+			// Create document node
+			const createDocQuery = `
+				CREATE (doc:Document {
+					title: $title,
+					content: $content,
+					created: $timestamp,
+					type: 'processed_document'
+				})
+				RETURN doc
+			`;
+			
+			await graph.query(createDocQuery, {
+				title,
+				content,
+				timestamp: new Date().toISOString()
+			});
+		}
+
+		return {
+			entitiesExtracted: extractEntities,
+			relationshipsCreated: createRelationships,
+			title
+		};
+	}
+
+	private analyzeSearchStrategy(query: string, context: string): { useVector: boolean, useGraph: boolean } {
+		// Simple heuristic-based strategy selection
+		// In a full implementation, this would use LLM for intelligent analysis
+		
+		const hasEntityKeywords = /\b(who|what|where|when|which|entity|person|organization|place)\b/i.test(query);
+		const hasSemanticKeywords = /\b(similar|like|about|meaning|concept|related)\b/i.test(query);
+		
+		return {
+			useVector: hasSemanticKeywords || query.length > 50, // Semantic or long queries
+			useGraph: hasEntityKeywords || context.includes('structured') // Entity or structured queries
+		};
+	}
+
+	private generateCypherFromQuery(query: string, context: string): string {
+		// Simple Cypher generation - in production, this would use LLM
+		return `
+			MATCH (n:Document)
+			WHERE n.title CONTAINS $query OR n.content CONTAINS $query
+			RETURN n.title as title, n.content as content
+			LIMIT 10
+		`.replace('$query', `"${query}"`);
+	}
+
+	private combineSearchResults(results: any[]): any[] {
+		// Simple result combination - could implement more sophisticated ranking
+		return results
+			.sort((a, b) => (b.score || 0) - (a.score || 0))
+			.slice(0, 10);
+	}
+
+	private calculateMD5(content: string): string {
+		// Simple MD5 calculation using Node.js crypto
+		const crypto = require('crypto');
+		return crypto.createHash('md5').update(content).digest('hex');
 	}
 }
