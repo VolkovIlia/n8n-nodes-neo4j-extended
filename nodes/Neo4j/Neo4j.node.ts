@@ -5,6 +5,7 @@ import {
 	INodeTypeDescription,
 	ISupplyDataFunctions,
 	NodeOperationError,
+	ApplicationError,
 	SupplyData,
 } from 'n8n-workflow';
 import { Neo4jGraph } from '@langchain/community/graphs/neo4j_graph';
@@ -834,7 +835,7 @@ export class Neo4j implements INodeType {
 				const embeddings = (await this.getInputConnectionData('ai_embedding', 0)) as Embeddings;
 				
 				if (!embeddings) {
-					throw new Error('Embedding model is required for vector operations');
+					throw new ApplicationError('Embedding model is required for vector operations');
 				}
 
 				const config = {

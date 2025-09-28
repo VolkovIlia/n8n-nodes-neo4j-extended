@@ -6,7 +6,7 @@ import {
 
 export class Neo4jApi implements ICredentialType {
 	name = 'neo4jApi';
-	displayName = 'Neo4j API (Extended)';
+	displayName = 'Neo4j API';
 	documentationUrl = 'https://neo4j.com/docs/getting-started/';
 	properties: INodeProperties[] = [
 		{
