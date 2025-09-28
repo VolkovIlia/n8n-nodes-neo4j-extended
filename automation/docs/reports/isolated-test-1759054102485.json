@@ -1,0 +1,86 @@
+{
+  "timestamp": "2025-09-28T10:08:22.483Z",
+  "environment": {
+    "neo4j_version": "5.15-community",
+    "n8n_version": "latest",
+    "node_version": "v22.11.0",
+    "platform": "win32"
+  },
+  "summary": {
+    "total_tests": 10,
+    "passed": 8,
+    "failed": 2,
+    "warnings": 0
+  },
+  "results": [
+    {
+      "test": "neo4j_connection",
+      "status": "PASSED",
+      "responseTime": 64,
+      "details": "Neo4j connection successful"
+    },
+    {
+      "test": "n8n_health",
+      "status": "FAILED",
+      "error": "socket hang up"
+    },
+    {
+      "test": "count_existing_nodes",
+      "status": "PASSED",
+      "responseTime": 34,
+      "details": "Found 21 existing nodes"
+    },
+    {
+      "test": "complex_graph_query",
+      "status": "PASSED",
+      "responseTime": 80,
+      "details": "Retrieved 6 person-company relationships"
+    },
+    {
+      "test": "create_test_node",
+      "status": "PASSED",
+      "responseTime": 84,
+      "details": "Created test node: automated_test_1759054099555"
+    },
+    {
+      "test": "schema_labels",
+      "status": "PASSED",
+      "responseTime": 32,
+      "details": "Found labels: Company, Person, Project, Document, TestNode"
+    },
+    {
+      "test": "node_files_check",
+      "status": "FAILED",
+      "error": "ENOENT: no such file or directory, scandir 'C:\\Users\\iliav\\Разработка\\n8n-nodes-neo4j-extended\\automation\\dist\\nodes\\Neo4j'"
+    },
+    {
+      "test": "performance_baseline",
+      "status": "PASSED",
+      "details": "Avg: 9.10ms, Min: 4ms, Max: 40ms"
+    },
+    {
+      "test": "invalid_cypher_handling",
+      "status": "PASSED",
+      "details": "Correctly handled invalid Cypher: Neo.ClientError.Statement.SyntaxError"
+    },
+    {
+      "test": "invalid_connection_handling",
+      "status": "PASSED",
+      "details": "Correctly handled invalid connection: ServiceUnavailable"
+    }
+  ],
+  "performance": {
+    "simple_query": {
+      "average": 9.1,
+      "min": 4,
+      "max": 40,
+      "iterations": 10
+    }
+  },
+  "errors": [],
+  "overall_status": "PENDING",
+  "recommendations": [
+    "⚠️  n8n service is not responding - check container status",
+    "🔧 2 tests failed - manual intervention required before user testing"
+  ]
+}

@@ -1,0 +1,172 @@
+{
+  "timestamp": "2025-09-28T10:30:02.299Z",
+  "test_phase": "performance_testing",
+  "summary": {
+    "total_tests": 9,
+    "passed": 9,
+    "warnings": 0,
+    "failed": 0
+  },
+  "performance_metrics": {
+    "simple_query": {
+      "average": 4.68,
+      "min": 2,
+      "max": 50,
+      "p95": 7,
+      "p99": 50
+    },
+    "count_query": {
+      "average": 4.333333333333333,
+      "min": 2,
+      "max": 23,
+      "p95": 7
+    },
+    "person_lookup": {
+      "average": 6.7,
+      "min": 3,
+      "max": 56,
+      "p95": 6
+    },
+    "company_employees": {
+      "average": 6.4,
+      "min": 3,
+      "max": 54,
+      "p95": 9
+    },
+    "project_relationships": {
+      "average": 7.9,
+      "min": 3,
+      "max": 84,
+      "p95": 8
+    },
+    "document_search": {
+      "average": 5.35,
+      "min": 3,
+      "max": 37,
+      "p95": 7
+    },
+    "memory_usage": {
+      "initial_heap": 13259048,
+      "final_heap": 21938584,
+      "heap_delta": 8679536,
+      "initial_external": 1963091,
+      "final_external": 2062209,
+      "external_delta": 99118
+    },
+    "vector_creation": {
+      "total_documents": 500,
+      "total_time": 370,
+      "documents_per_second": 1351.3513513513512
+    },
+    "vector_search": {
+      "average": 6.8,
+      "min": 3,
+      "max": 55,
+      "p95": 8
+    }
+  },
+  "load_test_results": {
+    "concurrent_1": {
+      "concurrency": 1,
+      "total_operations": 10,
+      "total_time": 663,
+      "average_response_time": 7,
+      "operations_per_second": 15.082956259426847,
+      "p95_response_time": 38
+    },
+    "concurrent_5": {
+      "concurrency": 5,
+      "total_operations": 50,
+      "total_time": 849,
+      "average_response_time": 9.32,
+      "operations_per_second": 58.89281507656066,
+      "p95_response_time": 50
+    },
+    "concurrent_10": {
+      "concurrency": 10,
+      "total_operations": 100,
+      "total_time": 1011,
+      "average_response_time": 11.23,
+      "operations_per_second": 98.91196834817013,
+      "p95_response_time": 61
+    },
+    "concurrent_20": {
+      "concurrency": 20,
+      "total_operations": 200,
+      "total_time": 1447,
+      "average_response_time": 17.02,
+      "operations_per_second": 138.217000691085,
+      "p95_response_time": 102
+    }
+  },
+  "test_results": [
+    {
+      "test": "query_performance_person_lookup",
+      "status": "PASSED",
+      "details": "6.70ms avg, p95: 6ms",
+      "performance_rating": "EXCELLENT"
+    },
+    {
+      "test": "query_performance_company_employees",
+      "status": "PASSED",
+      "details": "6.40ms avg, p95: 9ms",
+      "performance_rating": "EXCELLENT"
+    },
+    {
+      "test": "query_performance_project_relationships",
+      "status": "PASSED",
+      "details": "7.90ms avg, p95: 8ms",
+      "performance_rating": "EXCELLENT"
+    },
+    {
+      "test": "query_performance_document_search",
+      "status": "PASSED",
+      "details": "5.35ms avg, p95: 7ms",
+      "performance_rating": "EXCELLENT"
+    },
+    {
+      "test": "concurrent_operations_1",
+      "status": "PASSED",
+      "details": "7.00ms avg, 15.08 ops/sec",
+      "performance_rating": "EXCELLENT"
+    },
+    {
+      "test": "concurrent_operations_5",
+      "status": "PASSED",
+      "details": "9.32ms avg, 58.89 ops/sec",
+      "performance_rating": "EXCELLENT"
+    },
+    {
+      "test": "concurrent_operations_10",
+      "status": "PASSED",
+      "details": "11.23ms avg, 98.91 ops/sec",
+      "performance_rating": "EXCELLENT"
+    },
+    {
+      "test": "concurrent_operations_20",
+      "status": "PASSED",
+      "details": "17.02ms avg, 138.22 ops/sec",
+      "performance_rating": "EXCELLENT"
+    },
+    {
+      "test": "memory_usage_analysis",
+      "status": "PASSED",
+      "details": "8.28MB heap increase",
+      "performance_rating": "EXCELLENT"
+    }
+  ],
+  "performance_assessment": {
+    "overall_score": 100,
+    "rating": "EXCELLENT",
+    "critical_metrics": {
+      "simple_query_avg": 4.68,
+      "concurrent_10_avg": 11.23,
+      "memory_delta": 8.277450561523438
+    },
+    "issues": [],
+    "ready_for_production": true
+  },
+  "recommendations": [
+    "✅ Performance is excellent - ready for production use"
+  ]
+}

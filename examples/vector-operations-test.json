@@ -1,0 +1,106 @@
+{
+  "name": "Neo4j Vector Operations Test",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "vectorStore",
+        "operation": "addTexts",
+        "texts": "Neo4j is a powerful graph database that supports vector search capabilities for modern AI applications.",
+        "metadatas": [{"source": "test_document", "category": "technology"}]
+      },
+      "type": "CUSTOM.neo4j",
+      "typeVersion": 1,
+      "position": [280, 180],
+      "id": "add-test-text",
+      "name": "1. Add Test Text",
+      "credentials": {
+        "neo4jApi": {
+          "name": "Neo4j account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "vectorStore",
+        "operation": "similaritySearch",
+        "query": "graph database",
+        "k": 3
+      },
+      "type": "CUSTOM.neo4j",
+      "typeVersion": 1,
+      "position": [480, 180],
+      "id": "test-similarity-search",
+      "name": "2. Test Vector Search",
+      "credentials": {
+        "neo4jApi": {
+          "name": "Neo4j account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "graphDb",
+        "cypherQuery": "MATCH (d:Document) RETURN count(d) as total_documents"
+      },
+      "type": "CUSTOM.neo4j",
+      "typeVersion": 1,
+      "position": [680, 180],
+      "id": "count-documents",
+      "name": "3. Count Documents",
+      "credentials": {
+        "neo4jApi": {
+          "name": "Neo4j account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [80, 180],
+      "id": "manual-trigger",
+      "name": "Test Vector Operations"
+    }
+  ],
+  "connections": {
+    "Test Vector Operations": {
+      "main": [
+        [
+          {
+            "node": "1. Add Test Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Add Test Text": {
+      "main": [
+        [
+          {
+            "node": "2. Test Vector Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Test Vector Search": {
+      "main": [
+        [
+          {
+            "node": "3. Count Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "vector-test"
+  }
+}

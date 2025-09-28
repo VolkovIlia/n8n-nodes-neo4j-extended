@@ -1,0 +1,127 @@
+{
+  "name": "AI Agent Neo4j - EMBEDDING FIXED",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "Ты умный помощник, который находит информацию в базах данных Neo4j. Используй neo4j_search функцию для поиска информации. Всегда сначала пытайся найти информацию через векторный поиск (vector_search), а если нужны сложные связи - используй cypher_query."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [1760, -512],
+      "id": "ai-agent",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [1184, -528],
+      "id": "chat-trigger",
+      "name": "When chat message received",
+      "webhookId": "ai-agent-neo4j-embedding-test"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Search for information in Neo4j graph database and vector store. Use 'vector_search' for semantic similarity search of documents with the same embedding model that was used to vectorize the documents, or 'cypher_query' for complex graph relationships and structured data queries.",
+        "toolOperation": "both"
+      },
+      "type": "CUSTOM.neo4j",
+      "typeVersion": 1,
+      "position": [2064, -272],
+      "id": "neo4j-tool", 
+      "name": "Neo4j Search Tool - EMBEDDING CONNECTED",
+      "credentials": {
+        "neo4jApi": {
+          "name": "Neo4j account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "EmbeddingsGigaR"
+      },
+      "type": "n8n-nodes-gigachat.emGigaChat",
+      "typeVersion": 1,
+      "position": [2112, 16],
+      "id": "gigachat-embeddings",
+      "name": "GigaChat Embeddings - SAME AS VECTORIZATION",
+      "credentials": {
+        "gigaChatApi": {
+          "name": "GigaChat account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "GigaChat-2",
+        "options": {}
+      },
+      "type": "n8n-nodes-gigachat.lmGigaChat",
+      "typeVersion": 1,
+      "position": [1696, -304],
+      "id": "gigachat-model",
+      "name": "GigaChat Model",
+      "credentials": {
+        "gigaChatApi": {
+          "name": "GigaChat account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neo4j Search Tool - EMBEDDING CONNECTED": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GigaChat Embeddings - SAME AS VECTORIZATION": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Neo4j Search Tool - EMBEDDING CONNECTED",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GigaChat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ai-agent-neo4j-embedding-fixed"
+  }
+}

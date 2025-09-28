@@ -1,0 +1,210 @@
+{
+  "name": "Fixed AI Agent with Vector Search",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [-144, -160],
+      "id": "4a6e2208-f152-4989-801a-8946d6eccb73",
+      "name": "When chat message received",
+      "webhookId": "bf384487-ae3e-47d6-88dc-1295b53f9bba"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [176, -160],
+      "id": "a6741814-cfe9-4ba2-85d6-7726fb6da33a",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "operation": "similaritySearch",
+        "query": "={{ $json.chatInput }}",
+        "k": 3
+      },
+      "type": "CUSTOM.neo4j",
+      "typeVersion": 1,
+      "position": [464, 112],
+      "id": "724f7d76-5f0e-41e8-be71-8796f5a85b60",
+      "name": "Search for similar vectors",
+      "credentials": {
+        "neo4jApi": {
+          "id": "PxgsrKXd2zBuVRI6",
+          "name": "Neo4j account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "graphDb",
+        "query": "MATCH (n) RETURN n LIMIT 10"
+      },
+      "type": "CUSTOM.neo4j",
+      "typeVersion": 1,
+      "position": [208, 160],
+      "id": "940e253d-988e-481a-a5e1-9b8a979037fb",
+      "name": "Execute cypher query",
+      "credentials": {
+        "neo4jApi": {
+          "id": "PxgsrKXd2zBuVRI6",
+          "name": "Neo4j account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "EmbeddingsGigaR"
+      },
+      "type": "n8n-nodes-gigachat.emGigaChat",
+      "typeVersion": 1,
+      "position": [672, 368],
+      "id": "c2845dfb-3970-4639-8616-9dc54bf48d78",
+      "name": "GigaChat Embeddings",
+      "credentials": {
+        "gigaChatApi": {
+          "id": "zGIqMz663m3a3fNu",
+          "name": "GigaChat account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addTexts",
+        "texts": "={{ $json.text }}",
+        "metadatas": [{"source": "upload"}]
+      },
+      "type": "CUSTOM.neo4j",
+      "typeVersion": 1,
+      "position": [272, -464],
+      "id": "4fdb3cc0-1f55-4732-8a20-0bc4f96fe329",
+      "name": "Add texts to vector store",
+      "credentials": {
+        "neo4jApi": {
+          "id": "PxgsrKXd2zBuVRI6",
+          "name": "Neo4j account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "EmbeddingsGigaR"
+      },
+      "type": "n8n-nodes-gigachat.emGigaChat",
+      "typeVersion": 1,
+      "position": [768, -176],
+      "id": "af97aca1-7272-4a7f-a215-f674a0676a55",
+      "name": "GigaChat Embeddings1",
+      "credentials": {
+        "gigaChatApi": {
+          "id": "zGIqMz663m3a3fNu",
+          "name": "GigaChat account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "formTitle": "Upload document for vectorization",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Document Text",
+              "fieldType": "textarea",
+              "requiredField": true,
+              "fieldOptions": {}
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [0, -448],
+      "id": "79cfdf5c-a0e7-4bca-9065-7b8594f1c75f",
+      "name": "On form submission",
+      "webhookId": "fcaa323f-bdfd-4d66-b440-583cb51bd59f"
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search for similar vectors": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute cypher query": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GigaChat Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Search for similar vectors",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add texts to vector store": {
+      "main": [
+        []
+      ]
+    },
+    "GigaChat Embeddings1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Add texts to vector store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Add texts to vector store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "bc42711badb709e3d0998c0f5d1e750c9428bc57f65949d02b460948b4318613"
+  }
+}

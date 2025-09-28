@@ -1,0 +1,55 @@
+{
+  "name": "Add LangChain Document Test",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "vectorStore",
+        "operation": "addDocuments", 
+        "documents": "[\n  {\n    \"pageContent\": \"LangChain - это фреймворк для разработки приложений на основе больших языковых моделей (LLM). LangChain предоставляет инструменты и абстракции для создания сложных AI-приложений, которые могут рассуждать о данных и взаимодействовать с окружающей средой. Основные компоненты LangChain: Модели (Models) - интерфейсы для различных LLM, Промпты (Prompts) - шаблоны для эффективного взаимодействия с моделями, Цепочки (Chains) - последовательности вызовов к LLM и другим инструментам, Агенты (Agents) - LLM которые принимают решения о том какие действия предпринимать, Память (Memory) - способы сохранения состояния между вызовами цепочки, Индексы (Indexes) - способы структурирования документов для LLM. LangChain поддерживает интеграцию с векторными базами данных внешними API и различными источниками данных что делает его мощным инструментом для создания интеллектуальных приложений.\",\n    \"metadata\": {\"source\": \"document4.txt\", \"type\": \"manual\", \"topic\": \"LangChain components\"}\n  }\n]"
+      },
+      "type": "CUSTOM.neo4j",
+      "typeVersion": 1,
+      "position": [320, 80],
+      "id": "add-langchain-doc",
+      "name": "Add LangChain Document",
+      "credentials": {
+        "neo4jApi": {
+          "name": "Neo4j account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "EmbeddingsGigaR"
+      },
+      "type": "n8n-nodes-gigachat.emGigaChat",
+      "typeVersion": 1,
+      "position": [240, 240],
+      "id": "gigachat-embeddings",
+      "name": "GigaChat Embeddings",
+      "credentials": {
+        "gigaChatApi": {
+          "name": "GigaChat account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "GigaChat Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Add LangChain Document",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "add-langchain-test-document"
+  }
+}

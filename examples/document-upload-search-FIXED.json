@@ -1,0 +1,155 @@
+{
+  "name": "Neo4j Document Upload & Search - FIXED",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "vectorStore",
+        "operation": "similaritySearch",
+        "indexName": "vector_index",
+        "queryText": "test query example",
+        "k": 3
+      },
+      "type": "CUSTOM.neo4j",
+      "typeVersion": 1,
+      "position": [528, -208],
+      "id": "test-vector-search",
+      "name": "2. Test Vector Search",
+      "credentials": {
+        "neo4jApi": {
+          "name": "Neo4j account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "graphDb",
+        "cypherQuery": "MATCH (d:Document) RETURN count(d) as total_documents"
+      },
+      "type": "CUSTOM.neo4j",
+      "typeVersion": 1,
+      "position": [960, -176],
+      "id": "count-documents",
+      "name": "3. Count Documents",
+      "credentials": {
+        "neo4jApi": {
+          "name": "Neo4j account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "EmbeddingsGigaR"
+      },
+      "type": "n8n-nodes-gigachat.emGigaChat",
+      "typeVersion": 1,
+      "position": [320, 0],
+      "id": "gigachat-embeddings",
+      "name": "GigaChat Embeddings",
+      "credentials": {
+        "gigaChatApi": {
+          "name": "GigaChat account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "formTitle": "Upload Documents for Vector Search",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Upload Document",
+              "fieldType": "file"
+            },
+            {
+              "fieldLabel": "Document Title",
+              "fieldType": "text",
+              "requiredField": true,
+              "fieldOptions": {
+                "placeholder": "Enter document title"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [-272, -208],
+      "id": "form-submission",
+      "name": "Document Upload Form"
+    },
+    {
+      "parameters": {
+        "resource": "vectorStore",
+        "operation": "addDocuments",
+        "indexName": "vector_index"
+      },
+      "type": "CUSTOM.neo4j",
+      "typeVersion": 1,
+      "position": [128, -192],
+      "id": "add-documents",
+      "name": "Add documents to vector store",
+      "credentials": {
+        "neo4jApi": {
+          "name": "Neo4j account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "2. Test Vector Search": {
+      "main": [
+        [
+          {
+            "node": "3. Count Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GigaChat Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "2. Test Vector Search",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "Add documents to vector store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Upload Form": {
+      "main": [
+        [
+          {
+            "node": "Add documents to vector store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add documents to vector store": {
+      "main": [
+        [
+          {
+            "node": "2. Test Vector Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "document-upload-search-fixed"
+  }
+}

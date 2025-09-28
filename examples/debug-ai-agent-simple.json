@@ -1,0 +1,136 @@
+{
+  "name": "DEBUG: AI Agent Neo4j Simple Test",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "Ты помощник, который должен ОБЯЗАТЕЛЬНО использовать neo4j_search функцию для поиска информации. НИКОГДА не отвечай на вопросы без использования этого инструмента. Всегда начинай с поиска через neo4j_search с параметром operation_type: 'vector_search'."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [800, 200],
+      "id": "ai-agent-debug",
+      "name": "AI Agent Debug",
+      "credentials": {
+        "gigaChatApi": {
+          "id": "YaLUl9QNd6G4iNBc",
+          "name": "GigaChat account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [400, 200],
+      "id": "chat-trigger-debug",
+      "name": "When chat message received",
+      "webhookId": "debug-ai-agent-neo4j"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Search in Neo4j database. Always use operation_type 'vector_search' for finding information by semantic similarity. The query parameter should contain the search text.",
+        "toolOperation": "vectorSearch"
+      },
+      "type": "CUSTOM.neo4j",
+      "typeVersion": 1,
+      "position": [1200, 400],
+      "id": "neo4j-tool-debug",
+      "name": "Neo4j Tool",
+      "credentials": {
+        "neo4jApi": {
+          "id": "PxgsrKXd2zBuVRI6",
+          "name": "Neo4j account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "EmbeddingsGigaR"
+      },
+      "type": "n8n-nodes-gigachat.emGigaChat",
+      "typeVersion": 1,
+      "position": [1200, 600],
+      "id": "gigachat-embeddings-debug",
+      "name": "GigaChat Embeddings",
+      "credentials": {
+        "gigaChatApi": {
+          "id": "YaLUl9QNd6G4iNBc",
+          "name": "GigaChat account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "GigaChat-2",
+        "options": {}
+      },
+      "type": "n8n-nodes-gigachat.lmGigaChat",
+      "typeVersion": 1,
+      "position": [800, 400],
+      "id": "gigachat-model-debug",
+      "name": "GigaChat Model",
+      "credentials": {
+        "gigaChatApi": {
+          "id": "YaLUl9QNd6G4iNBc",
+          "name": "GigaChat account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Debug",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neo4j Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Debug",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GigaChat Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Neo4j Tool",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GigaChat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Debug",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "debug-ai-agent-neo4j-simple"
+  }
+}

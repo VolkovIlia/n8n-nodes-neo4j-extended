@@ -1,19 +1,24 @@
 {
-  "name": "n8n-nodes-<...>",
+  "name": "n8n-nodes-neo4j-extended",
   "version": "0.1.0",
-  "description": "",
+  "description": "n8n community node for Neo4j with vector search, graph database operations, and AI tool integration",
   "keywords": [
-    "n8n-community-node-package"
+    "n8n-community-node-package",
+    "neo4j",
+    "graph-database",
+    "vector-search",
+    "langchain",
+    "ai-tools"
   ],
   "license": "MIT",
-  "homepage": "",
+  "homepage": "https://github.com/VolkovIlia/n8n-nodes-neo4j-extended",
   "author": {
-    "name": "",
-    "email": ""
+    "name": "Ilia Volkov",
+    "email": "ilia@example.com"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/<...>/n8n-nodes-<...>.git"
+    "url": "https://github.com/VolkovIlia/n8n-nodes-neo4j-extended.git"
   },
   "engines": {
     "node": ">=20.15"
@@ -33,12 +38,10 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "credentials": [
-      "dist/credentials/ExampleCredentialsApi.credentials.js",
-      "dist/credentials/HttpBinApi.credentials.js"
+      "dist/credentials/Neo4jApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/ExampleNode/ExampleNode.node.js",
-      "dist/nodes/HttpBin/HttpBin.node.js"
+      "dist/nodes/Neo4j/Neo4j.node.js"
     ]
   },
   "devDependencies": {
@@ -51,5 +54,10 @@
   },
   "peerDependencies": {
     "n8n-workflow": "*"
+  },
+  "dependencies": {
+    "@langchain/community": "^0.3.56",
+    "axios": "^1.12.2",
+    "neo4j-driver": "^5.28.2"
   }
 }

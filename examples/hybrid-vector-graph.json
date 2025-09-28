@@ -1,0 +1,182 @@
+{
+  "name": "Complete Neo4j Vector-Graph Hybrid Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "vectorStore",
+        "operation": "similaritySearch",
+        "query": "machine learning algorithms for graph analysis",
+        "k": 3,
+        "searchKwargs": "{\"filter\": {\"category\": \"technical\"}}"
+      },
+      "type": "n8n-nodes-neo4j-extended.neo4j",
+      "typeVersion": 1,
+      "position": [200, 200],
+      "id": "vector-search-1",
+      "name": "Search Similar Documents",
+      "credentials": {
+        "neo4jApi": {
+          "id": "neo4j-creds",
+          "name": "Neo4j API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "graphDb",
+        "operation": "executeQuery",
+        "cypherQuery": "MATCH (d:Document) WHERE d.content CONTAINS $keyword RETURN d.id as doc_id, d.title as title, d.content as content, d.metadata as metadata LIMIT 10",
+        "queryParameters": "{\"keyword\": \"machine learning\"}"
+      },
+      "type": "n8n-nodes-neo4j-extended.neo4j",
+      "typeVersion": 1,
+      "position": [200, 400],
+      "id": "graph-search-1",
+      "name": "Search Graph Documents",
+      "credentials": {
+        "neo4jApi": {
+          "id": "neo4j-creds",
+          "name": "Neo4j API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine vector and graph search results\nconst vectorResults = $input.first().json;\nconst graphResults = $input.last().json;\n\nconst combinedResults = {\n  vector_matches: vectorResults.length || 0,\n  graph_matches: graphResults.length || 0,\n  combined_data: {\n    vector_results: vectorResults,\n    graph_results: graphResults\n  },\n  analysis: {\n    overlap_check: 'enabled',\n    timestamp: new Date().toISOString(),\n    query: 'machine learning algorithms for graph analysis'\n  }\n};\n\nreturn [combinedResults];"
+      },
+      "type": "@n8n/n8n-nodes-langchain.codeExecutor",
+      "typeVersion": 1,
+      "position": [400, 300],
+      "id": "combine-results-1",
+      "name": "Combine Search Results"
+    },
+    {
+      "parameters": {
+        "resource": "vectorStore",
+        "operation": "addTexts",
+        "texts": "[\"Advanced graph neural networks for recommendation systems\", \"Neo4j vector search with machine learning embeddings\", \"Hybrid search combining vector similarity and graph traversal\"]",
+        "metadatas": "[{\"category\": \"technical\", \"author\": \"AI Research Team\", \"date\": \"2024-12-26\"}, {\"category\": \"technical\", \"author\": \"Database Team\", \"date\": \"2024-12-26\"}, {\"category\": \"hybrid\", \"author\": \"ML Team\", \"date\": \"2024-12-26\"}]",
+        "ids": "[\"doc_gnn_2024_001\", \"doc_neo4j_vector_001\", \"doc_hybrid_search_001\"]"
+      },
+      "type": "n8n-nodes-neo4j-extended.neo4j",
+      "typeVersion": 1,
+      "position": [600, 200],
+      "id": "add-vectors-1",
+      "name": "Add New Vector Documents",
+      "credentials": {
+        "neo4jApi": {
+          "id": "neo4j-creds", 
+          "name": "Neo4j API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "graphDb",
+        "operation": "executeQuery",
+        "cypherQuery": "CREATE (d:Document {id: $doc_id, title: $title, content: $content, category: $category, created_at: datetime()}) RETURN d",
+        "queryParameters": "{\"doc_id\": \"graph_doc_001\", \"title\": \"Graph Database Best Practices\", \"content\": \"Comprehensive guide to Neo4j optimization and query performance tuning\", \"category\": \"technical\"}"
+      },
+      "type": "n8n-nodes-neo4j-extended.neo4j",
+      "typeVersion": 1,
+      "position": [600, 400],
+      "id": "create-graph-doc-1",
+      "name": "Create Graph Document",
+      "credentials": {
+        "neo4jApi": {
+          "id": "neo4j-creds",
+          "name": "Neo4j API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "vectorStore",
+        "operation": "hybridSearch",
+        "query": "Neo4j vector search optimization",
+        "vectorK": 5,
+        "fullTextK": 3,
+        "alpha": 0.7,
+        "searchKwargs": "{\"filter\": {\"category\": \"technical\"}}"
+      },
+      "type": "n8n-nodes-neo4j-extended.neo4j",
+      "typeVersion": 1,
+      "position": [800, 300],
+      "id": "hybrid-search-1",
+      "name": "Hybrid Vector-Text Search",
+      "credentials": {
+        "neo4jApi": {
+          "id": "neo4j-creds",
+          "name": "Neo4j API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Search Similar Documents": {
+      "main": [
+        [
+          {
+            "node": "Combine Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Graph Documents": {
+      "main": [
+        [
+          {
+            "node": "Combine Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Search Results": {
+      "main": [
+        [
+          {
+            "node": "Add New Vector Documents",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Graph Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add New Vector Documents": {
+      "main": [
+        [
+          {
+            "node": "Hybrid Vector-Text Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Graph Document": {
+      "main": [
+        [
+          {
+            "node": "Hybrid Vector-Text Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "example-workflow-3"
+  }
+}

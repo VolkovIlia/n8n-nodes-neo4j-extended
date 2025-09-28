@@ -1,0 +1,55 @@
+{
+  "name": "Add Neo4j Test Document",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "vectorStore",
+        "operation": "addDocuments", 
+        "documents": "[\n  {\n    \"pageContent\": \"Neo4j - это графовая база данных NoSQL, разработанная Neo4j Inc. Neo4j использует язык запросов Cypher для создания и извлечения связей между элементами данных. Это позволяет разработчикам создавать приложения, которые обходят связанные данные очень быстро. Основные преимущества Neo4j: высокая производительность при работе с графовыми данными, гибкая схема данных, мощный язык запросов Cypher, масштабируемость и надежность, поддержка ACID-транзакций. Neo4j широко используется для рекомендательных систем, обнаружения мошенничества, управления знаниями, социальных сетей и анализа сетей.\",\n    \"metadata\": {\"source\": \"document1.txt\", \"type\": \"manual\", \"topic\": \"Neo4j advantages\"}\n  }\n]"
+      },
+      "type": "CUSTOM.neo4j",
+      "typeVersion": 1,
+      "position": [320, 80],
+      "id": "add-neo4j-doc",
+      "name": "Add Neo4j Document",
+      "credentials": {
+        "neo4jApi": {
+          "name": "Neo4j account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "EmbeddingsGigaR"
+      },
+      "type": "n8n-nodes-gigachat.emGigaChat",
+      "typeVersion": 1,
+      "position": [240, 240],
+      "id": "gigachat-embeddings",
+      "name": "GigaChat Embeddings",
+      "credentials": {
+        "gigaChatApi": {
+          "name": "GigaChat account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "GigaChat Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Add Neo4j Document",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "add-neo4j-test-document"
+  }
+}

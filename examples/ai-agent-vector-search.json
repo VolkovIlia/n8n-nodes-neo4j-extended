@@ -1,0 +1,126 @@
+{
+  "name": "Neo4j Vector Search with AI Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [1200, 300],
+      "id": "ai-agent-1",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "resource": "vectorStore",
+        "operation": "similaritySearch",
+        "queryText": "={{ $json.query }}",
+        "k": 5,
+        "searchType": "hybrid",
+        "metadataFilter": "{\"category\": {\"$eq\": \"technology\"}}"
+      },
+      "type": "n8n-nodes-neo4j-extended.neo4j",
+      "typeVersion": 1,
+      "position": [1400, 500],
+      "id": "neo4j-vector-1", 
+      "name": "Neo4j Vector Search",
+      "credentials": {
+        "neo4jApi": {
+          "id": "neo4j-creds",
+          "name": "Neo4j API"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.embedOpenAi",
+      "typeVersion": 1,
+      "position": [1400, 300],
+      "id": "openai-embed-1",
+      "name": "OpenAI Embeddings",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-creds",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [1200, 100],
+      "id": "openai-llm-1",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-creds",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "You are a helpful AI assistant with access to a knowledge base. Use the Neo4j vector search tool to find relevant information to answer user questions.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolSystemMessage",
+      "typeVersion": 1,
+      "position": [1000, 200],
+      "id": "system-message-1",
+      "name": "System Message"
+    }
+  ],
+  "connections": {
+    "OpenAI Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Neo4j Vector Search",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neo4j Vector Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "System Message": {
+      "ai_message": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_message",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "example-workflow-1"
+  }
+}
