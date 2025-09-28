@@ -7,3 +7,41 @@ npm-debug.log*
 yarn.lock
 .vscode/launch.json
 .github
+
+# Testing and automation files
+automation/
+test-documents/
+reports/
+*.test.*
+*test*.js
+*test*.mjs
+*test*.json
+
+# Debug and temporary files
+CRITICAL_*.md
+FINAL_*.md
+DEBUG_*.md
+REAL_*.md
+TEST_RESULTS.md
+*-test.json
+*-correct.json
+*-demo.*
+
+# Docker and development files
+docker-compose*.yml
+!docker-compose.yml
+*-simple.yml
+
+# Temporary SVG files
+Logo_*.svg
+
+# Submodules and external repos
+n8n-gigachat/
+*-gigachat/
+
+# Development configs
+mcp-config.json
+*.cypher
+
+# Package locks from subdirectories
+automation/package-lock.json
