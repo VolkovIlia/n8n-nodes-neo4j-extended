@@ -3,11 +3,17 @@ import {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	ISupplyDataFunctions,
 	NodeOperationError,
+	SupplyData,
 } from 'n8n-workflow';
 import { Neo4jGraph } from '@langchain/community/graphs/neo4j_graph';
 import { Neo4jVectorStore } from '@langchain/community/vectorstores/neo4j_vector';
+import { DynamicTool } from '@langchain/core/tools';
 import type { Embeddings } from '@langchain/core/embeddings';
+
+// Import logWrapper for proper AI tool GUI integration
+const { logWrapper } = require('@n8n/n8n-nodes-langchain/dist/utils/logWrapper');
 
 export class Neo4j implements INodeType {
 	description: INodeTypeDescription = {
@@ -18,11 +24,7 @@ export class Neo4j implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-		desc						return [this.helpers.returnJsonArray(results.map(([doc, score]) => ({
-							text: doc.pageContent,
-							score: score,
-							metadata: doc.metadata
-						})))];  on: 'Work with Neo4j graph database and vector search',
+		description: 'Work with Neo4j graph database and vector search',
 		defaults: {
 			name: 'Neo4j',
 		},
@@ -475,20 +477,38 @@ export class Neo4j implements INodeType {
 		if (mode === 'retrieve-as-tool') {
 			// Check if this is a tool call with parameters (from AI Agent)
 			const inputData = this.getInputData();
+			console.log('[DEBUG] Neo4j Tool - Input data:', JSON.stringify(inputData, null, 2));
+			console.log('[DEBUG] Neo4j Tool - Input data length:', inputData.length);
+			
+			// Check workflow execution context
+			const executionContext = this.getContext('node');
+			console.log('[DEBUG] Neo4j Tool - Execution context keys:', Object.keys(executionContext));
+			
+			// If we have input data with function call parameters, execute the tool
 			if (inputData.length > 0 && inputData[0].json) {
 				const toolInput = inputData[0].json;
+				console.log('[DEBUG] Neo4j Tool - Tool input:', JSON.stringify(toolInput, null, 2));
+				console.log('[DEBUG] Neo4j Tool - Tool input keys:', Object.keys(toolInput));
+				console.log('[DEBUG] Neo4j Tool - Has query?', !!toolInput.query);
+				console.log('[DEBUG] Neo4j Tool - Has cypher_query?', !!toolInput.cypher_query);
+				
+				// Check if this is an actual function call (has query parameter)
 				if (toolInput.query || toolInput.cypher_query) {
+					console.log('[DEBUG] Neo4j Tool - This is a function call, executing...');
 					// This is an actual tool execution - handle it inline
 					try {
 						// Handle vector search
 						if (toolInput.operation_type === 'vector_search' || toolInput.query) {
+							console.log('[DEBUG] Neo4j Tool - Starting vector search');
 							// Get embeddings from input connection
 							const embeddings = (await this.getInputConnectionData('ai_embedding', 0)) as Embeddings;
 							
 							if (!embeddings) {
+								console.log('[DEBUG] Neo4j Tool - No embeddings found');
 								throw new NodeOperationError(this.getNode(), 'Embedding model is required for vector operations');
 							}
 
+							console.log('[DEBUG] Neo4j Tool - Embeddings found, creating config');
 							const config = {
 								url: credentials.uri as string,
 								username: credentials.username as string,
@@ -502,23 +522,33 @@ export class Neo4j implements INodeType {
 							embeddingNodeProperty: "embedding",
 							textNodeProperties: ["text"],
 							searchType: 'vector' as "vector" | "hybrid",
-						};							const vectorStore = await Neo4jVectorStore.fromExistingIndex(embeddings, vectorConfig);
+						};
+						
+						console.log('[DEBUG] Neo4j Tool - Vector config:', JSON.stringify(vectorConfig, null, 2));							const vectorStore = await Neo4jVectorStore.fromExistingIndex(embeddings, vectorConfig);
 							
 							try {
 								const queryText = toolInput.query as string;
+								console.log('[DEBUG] Neo4j Tool - Query text:', queryText);
+								
 								if (!queryText) {
 									throw new NodeOperationError(this.getNode(), 'Query text is required for vector search');
 								}
 								const k = 5; // Default number of results
 								
+								console.log('[DEBUG] Neo4j Tool - Executing similarity search with k =', k);
 								const results = await vectorStore.similaritySearchWithScore(queryText, k);
+								console.log('[DEBUG] Neo4j Tool - Search results count:', results.length);
+								console.log('[DEBUG] Neo4j Tool - Results:', JSON.stringify(results.slice(0, 2), null, 2)); // Log first 2 results
 								
-								return [this.helpers.returnJsonArray(results.map(([doc, score]) => ({
+								const formattedResults = results.map(([doc, score]) => ({
 									text: doc.pageContent,
 									score: score,
 									metadata: doc.metadata,
 									source: 'vector_search'
-								})))];
+								}));
+								
+								console.log('[DEBUG] Neo4j Tool - Formatted results:', JSON.stringify(formattedResults.slice(0, 2), null, 2));
+								return [this.helpers.returnJsonArray(formattedResults)];
 							} finally {
 								await vectorStore.close();
 							}
@@ -556,62 +586,53 @@ export class Neo4j implements INodeType {
 					} catch (error) {
 						throw new NodeOperationError(this.getNode(), error as Error);
 					}
+				} else {
+					console.log('[DEBUG] Neo4j Tool - No parameters provided, returning error message');
+					// AI Agent called function but didn't provide parameters
+					return [[{ 
+						json: { 
+							error: "Function called without parameters. Please provide either 'query' for vector search or 'cypher_query' for graph operations.",
+							example_usage: {
+								vector_search: {
+									operation_type: "vector_search",
+									query: "your search text here"
+								},
+								cypher_query: {
+									operation_type: "cypher_query", 
+									cypher_query: "MATCH (n) RETURN n LIMIT 10"
+								}
+							}
+						}, 
+						pairedItem: { item: 0 } 
+					}]];
 				}
 			}
 			
 			// Return tool definition for AI Agent registration - handle inline
-			const toolDescription = this.getNodeParameter('toolDescription', 0) as string;
-			const toolOperation = this.getNodeParameter('toolOperation', 0, 'both') as string;
 			
 			const tool = {
 				type: 'function',
 				function: {
 					name: 'neo4j_search',
-					description: toolDescription,
+					description: 'Search information in Neo4j database. Use this function to find information about topics.',
 					parameters: {
 						type: 'object',
-						properties: {} as any,
-						required: [] as string[],
+						properties: {
+							query: {
+								type: 'string',
+								description: 'Search query text to find information',
+							},
+						},
+						required: ['query'],
 					},
 				},
 			};
 
-			// Add parameters based on tool operation
-			if (toolOperation === 'vectorSearch' || toolOperation === 'both') {
-				tool.function.parameters.properties.query = {
-					type: 'string',
-					description: 'Text query for semantic vector search',
-				};
-				tool.function.parameters.properties.operation_type = {
-					type: 'string',
-					enum: ['vector_search'],
-					description: 'Type of search operation',
-				};
-				tool.function.parameters.required.push('query');
-			}
-
-			if (toolOperation === 'graphQuery' || toolOperation === 'both') {
-				tool.function.parameters.properties.cypher_query = {
-					type: 'string',
-					description: 'Cypher query for graph database operations',
-				};
-				if (toolOperation === 'both') {
-					tool.function.parameters.properties.operation_type = {
-						type: 'string',
-						enum: ['vector_search', 'cypher_query'],
-						description: 'Type of operation to perform',
-					};
-				} else {
-					tool.function.parameters.properties.operation_type = {
-						type: 'string',
-						enum: ['cypher_query'],
-						description: 'Type of operation to perform',
-					};
-				}
-				tool.function.parameters.required.push('operation_type');
-			}
-
 			console.log('[NEO4J AI TOOL] Final tool definition:', JSON.stringify(tool, null, 2));
+			console.log('[NEO4J AI TOOL] Schema validation - name:', tool.function.name);
+			console.log('[NEO4J AI TOOL] Schema validation - description:', tool.function.description);
+			console.log('[NEO4J AI TOOL] Schema validation - parameters:', JSON.stringify(tool.function.parameters));
+			console.log('[NEO4J AI TOOL] Schema validation - required:', tool.function.parameters.required);
 			return [[{ json: tool, pairedItem: { item: 0 } }]];
 		}
 		
@@ -794,5 +815,69 @@ export class Neo4j implements INodeType {
 		}
 
 		return [[]];
+	}
+
+	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
+		const credentials = await this.getCredentials('neo4jApi');
+		const mode = this.getNodeParameter('mode', itemIndex, 'manual') as string;
+		
+		if (mode !== 'retrieve-as-tool') {
+			throw new NodeOperationError(this.getNode(), 'supplyData can only be used in retrieve-as-tool mode');
+		}
+
+		// Create a DynamicTool that wraps our Neo4j functionality
+		const tool = new DynamicTool({
+			name: 'neo4j_search',
+			description: 'Search for information in Neo4j database. Use this function to find information about topics.',
+			func: async (query: string) => {
+				// Get embeddings from input connection
+				const embeddings = (await this.getInputConnectionData('ai_embedding', 0)) as Embeddings;
+				
+				if (!embeddings) {
+					throw new Error('Embedding model is required for vector operations');
+				}
+
+				const config = {
+					url: credentials.uri as string,
+					username: credentials.username as string,
+					password: credentials.password as string,
+					database: credentials.database as string,
+				};
+
+				const vectorConfig = {
+					...config,
+					indexName: 'vector_index',
+					embeddingNodeProperty: "embedding",
+					textNodeProperties: ["text"],
+					searchType: 'vector' as "vector" | "hybrid",
+				};
+				
+				const vectorStore = await Neo4jVectorStore.fromExistingIndex(embeddings, vectorConfig);
+				
+				try {
+					const results = await vectorStore.similaritySearchWithScore(query, 5);
+					
+					const formattedResults = results.map(([doc, score]) => ({
+						text: doc.pageContent,
+						score: score,
+						metadata: doc.metadata,
+						source: 'vector_search'
+					}));
+					
+					// Return formatted results as a readable string for AI Agent
+					const resultText = formattedResults.map((result, index) => 
+						`Result ${index + 1} (score: ${result.score.toFixed(3)}):\n${result.text}\n`
+					).join('\n---\n');
+					
+					return resultText;
+				} finally {
+					await vectorStore.close();
+				}
+			}
+		});
+		
+		return {
+			response: logWrapper(tool, this),
+		};
 	}
 }
