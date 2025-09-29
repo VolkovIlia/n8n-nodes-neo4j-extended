@@ -1051,10 +1051,20 @@ export class Neo4j implements INodeType {
 
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
 		const credentials = await this.getCredentials('neo4jApi');
-		const mode = this.getNodeParameter('mode', itemIndex, 'manual') as string;
 		
+		// Get mode parameter - if not explicitly set, assume we're being called as a tool
+		let mode: string;
+		try {
+			mode = this.getNodeParameter('mode', itemIndex, 'retrieve-as-tool') as string;
+		} catch (error) {
+			// If parameter access fails, assume tool mode
+			mode = 'retrieve-as-tool';
+		}
+		
+		// supplyData is only called when node is used as AI tool, so we should accept it
 		if (mode !== 'retrieve-as-tool') {
-			throw new NodeOperationError(this.getNode(), 'supplyData can only be used in retrieve-as-tool mode');
+			// Instead of throwing error, log warning and proceed
+			console.warn('[Neo4j Tool] supplyData called but mode is not retrieve-as-tool. Proceeding anyway as this is expected for AI tool usage.');
 		}
 
 		// Create a DynamicTool that wraps our Neo4j functionality

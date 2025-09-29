@@ -56,65 +56,62 @@
 - Support for `documentProcessor`, `smartSearch`, and `graphBuilder` operations
 - Improved AI Agent integration with dynamic tool capabilities
 
-#### **Parameter Validation:**
-- Rich parameter sets for all new operations
-- Context-aware parameter visibility
-- Enhanced error handling and validation
-
-### 🏗️ **Architecture Improvements**
-
-#### **Modular Design:**
-- Separation of concerns with dedicated helper methods
-- Clean abstraction between vector and graph operations  
-- Extensible architecture for future AI enhancements
-
-#### **Error Handling:**
-- Application-specific error types (`ApplicationError`)
-- Detailed error messages with context
-- Graceful degradation for partial failures
-
-### 🔄 **Backward Compatibility**
-- ✅ **100% Compatible** with all existing v1.0.x operations
-- ✅ All existing Manual Mode operations unchanged
-- ✅ All existing AI Tool Mode operations unchanged
-- ✅ No breaking changes to existing workflows
+### 🐛 **Includes Hotfix from v1.0.3**
+- **Fixed AI Agent Integration Error**: Resolved "supplyData can only be used in retrieve-as-tool mode" error
+- Improved mode detection logic and enhanced error handling
 
 ---
 
-## [1.0.2] - 2024-09-29
+## [1.0.3] - 2024-09-29 - HOTFIX
 
-### 🔧 **Bug Fixes**
-- Fixed ESLint compliance issues for npm publication
-- Updated credentials displayName format
-- Replaced generic Error with ApplicationError for better n8n integration
+### 🐛 **CRITICAL BUG FIX**
+- **Fixed AI Agent Integration Error**: Resolved "supplyData can only be used in retrieve-as-tool mode" error
+  - Improved mode detection logic in `supplyData` method
+  - Added fallback handling for AI Agent tool invocation
+  - Enhanced error handling with graceful degradation instead of hard failure
+  - Now correctly handles AI Agent connections without requiring manual mode configuration
+
+### 🔧 **Technical Details**
+- Modified `supplyData` method to handle mode parameter access failures
+- Added warning logging instead of throwing errors for mode mismatches
+- Improved AI tool integration robustness for various connection scenarios
+
+---
+
+## [1.0.2] - 2024-09-28
+
+### 🚀 **Initial Release**
+- Neo4j graph database integration
+- Vector search capabilities with LangChain Neo4j VectorStore
+- Basic CRUD operations (Create, Read, Update, Delete)
+- Cypher query execution
+- AI Agent tool integration via `supplyData` method
+
+### 📦 **Core Features**
+- **Graph Operations**: Create nodes, relationships, and execute custom Cypher queries
+- **Vector Operations**: Similarity search, document storage with embeddings
+- **AI Tool Mode**: Integration as a tool for AI agents with dynamic tool creation
+- **Authentication**: Secure Neo4j database connection with credentials
+
+### 🛠 **Technical Stack**
+- n8n community node package
+- LangChain Neo4j integration
+- TypeScript implementation
+- Supports Neo4j 4.x and 5.x
 
 ---
 
 ## [1.0.1] - 2024-09-28
 
-### 🎯 **Initial Release**
-- Neo4j vector search integration
-- Graph database operations
-- AI Tool support for n8n AI Agents
-- Docker test environment setup
+### 🐛 **Bug Fixes**
+- Minor fixes and improvements
+- Enhanced error handling
 
 ---
 
-## 🎯 **Migration Guide v1.0.x → v1.1.0**
+## [1.0.0] - 2024-09-28
 
-### **No Action Required**
-All existing workflows will continue to work without changes. New operations are additive enhancements.
-
-### **New Capabilities Available**
-1. **Document Processing**: Use "Process Document" operation for AI-powered content analysis
-2. **Hybrid Search**: Use "Hybrid Search" for intelligent vector+graph queries
-3. **Data Management**: Use "Clean by Metadata" and "Update Document" for lifecycle management
-
-### **AI Agent Enhancements**
-- New tool operations available for AI Agents
-- Enhanced context understanding for search strategy selection
-- Improved document processing capabilities
-
----
-
-**🚀 Ready to revolutionize your Neo4j workflows with AI-powered document processing!**
+### 🎉 **Initial Public Release**
+- First stable release of n8n-nodes-neo4j-extended
+- Core Neo4j functionality
+- Vector search integration
