@@ -16,6 +16,67 @@ import type { Embeddings } from '@langchain/core/embeddings';
 // Import logWrapper for proper AI tool GUI integration
 const { logWrapper } = require('@n8n/n8n-nodes-langchain/dist/utils/logWrapper');
 
+const ROUTING_ERROR_REGEX = /Could not perform discovery|No routing servers available/i;
+
+type Neo4jConnectionConfig = {
+        url: string;
+        username: string;
+        password: string;
+        database?: string;
+        [key: string]: unknown;
+};
+
+function shouldRetryWithDirectConnection(error: unknown, url: string): boolean {
+        if (typeof url !== 'string' || !url.startsWith('neo4j')) {
+                return false;
+        }
+
+        const message = error instanceof Error ? error.message : '';
+        return ROUTING_ERROR_REGEX.test(message);
+}
+
+function toDirectBoltUri(uri: string): string {
+        if (uri.startsWith('neo4j+ssc://')) {
+                return uri.replace('neo4j+ssc://', 'bolt+ssc://');
+        }
+        if (uri.startsWith('neo4j+s://')) {
+                return uri.replace('neo4j+s://', 'bolt+s://');
+        }
+        if (uri.startsWith('neo4j://')) {
+                return uri.replace('neo4j://', 'bolt://');
+        }
+        return uri;
+}
+
+async function initializeGraphWithFallback(config: Neo4jConnectionConfig) {
+        try {
+                return await Neo4jGraph.initialize(config);
+        } catch (error) {
+                if (!shouldRetryWithDirectConnection(error, config.url)) {
+                        throw error;
+                }
+
+                const fallbackConfig = { ...config, url: toDirectBoltUri(config.url) };
+                return Neo4jGraph.initialize(fallbackConfig);
+        }
+}
+
+async function initializeVectorStoreWithFallback(
+        embeddings: Embeddings,
+        config: Neo4jConnectionConfig,
+) {
+        try {
+                return await Neo4jVectorStore.fromExistingIndex(embeddings, config);
+        } catch (error) {
+                if (!shouldRetryWithDirectConnection(error, config.url)) {
+                        throw error;
+                }
+
+                const fallbackConfig = { ...config, url: toDirectBoltUri(config.url) };
+                return Neo4jVectorStore.fromExistingIndex(embeddings, fallbackConfig);
+        }
+}
+
 export class Neo4j implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Neo4j',
@@ -502,7 +563,10 @@ export class Neo4j implements INodeType {
 						if (toolInput.operation_type === 'vector_search' || toolInput.query) {
 							console.log('[DEBUG] Neo4j Tool - Starting vector search');
 							// Get embeddings from input connection
-							const embeddings = (await this.getInputConnectionData('ai_embedding', 0)) as Embeddings;
+							const embeddings = (await this.getInputConnectionData(
+					'ai_embedding',
+					0,
+				)) as Embeddings;
 							
 							if (!embeddings) {
 								console.log('[DEBUG] Neo4j Tool - No embeddings found');
@@ -510,7 +574,7 @@ export class Neo4j implements INodeType {
 							}
 
 							console.log('[DEBUG] Neo4j Tool - Embeddings found, creating config');
-							const config = {
+							const baseConfig: Neo4jConnectionConfig = {
 								url: credentials.uri as string,
 								username: credentials.username as string,
 								password: credentials.password as string,
@@ -518,14 +582,15 @@ export class Neo4j implements INodeType {
 							};
 
 						const vectorConfig = {
-							...config,
+							...baseConfig,
 							indexName: 'vector_index',
-							embeddingNodeProperty: "embedding",
-							textNodeProperties: ["text"],
-							searchType: 'vector' as "vector" | "hybrid",
+							embeddingNodeProperty: 'embedding',
+							textNodeProperty: 'text',
+							searchType: 'vector' as const,
 						};
 						
-						console.log('[DEBUG] Neo4j Tool - Vector config:', JSON.stringify(vectorConfig, null, 2));							const vectorStore = await Neo4jVectorStore.fromExistingIndex(embeddings, vectorConfig);
+						console.log('[DEBUG] Neo4j Tool - Vector config:', JSON.stringify(vectorConfig, null, 2));
+							const vectorStore = await initializeVectorStoreWithFallback(embeddings, vectorConfig);
 							
 							try {
 								const queryText = toolInput.query as string;
@@ -557,14 +622,14 @@ export class Neo4j implements INodeType {
 
 						// Handle graph query
 						if (toolInput.operation_type === 'cypher_query' || toolInput.cypher_query) {
-							const config = {
+							const baseConfig: Neo4jConnectionConfig = {
 								url: credentials.uri as string,
 								username: credentials.username as string,
 								password: credentials.password as string,
 								database: credentials.database as string,
 							};
 							
-							const graph = await Neo4jGraph.initialize(config);
+							const graph = await initializeGraphWithFallback(baseConfig);
 							
 							try {
 								const cypherQuery = toolInput.cypher_query as string;
@@ -641,7 +706,7 @@ export class Neo4j implements INodeType {
 		const operation = this.getNodeParameter('operation', 0) as string;
 
 		// Neo4j connection configuration
-		const config = {
+		const baseConfig: Neo4jConnectionConfig = {
 			url: credentials.uri as string,
 			username: credentials.username as string,
 			password: credentials.password as string,
@@ -651,10 +716,10 @@ export class Neo4j implements INodeType {
 		try {
 			if (resource === 'vectorStore') {
 				// Get embeddings from input connection
-                const embeddings = (await this.getInputConnectionData(
-                    'ai_embedding',
-                    0,
-                )) as Embeddings;
+				const embeddings = (await this.getInputConnectionData(
+					'ai_embedding',
+					0,
+				)) as Embeddings;
 				
 				if (!embeddings) {
 					throw new NodeOperationError(this.getNode(), 'Embedding model is required for vector operations');
@@ -663,17 +728,18 @@ export class Neo4j implements INodeType {
 				const indexName = this.getNodeParameter('indexName', 0) as string;
 				const searchType = this.getNodeParameter('searchType', 0, 'vector') as string;
 
-			// Vector store configuration
-		const vectorConfig = {
-			...config,
-			indexName,
-			embeddingNodeProperty: "embedding",
-			textNodeProperties: ["text"],
-			searchType: searchType as "vector" | "hybrid",
-		};			const vectorStore = await Neo4jVectorStore.fromExistingIndex(
-				embeddings,
-				vectorConfig
-			);				try {
+				// Vector store configuration
+				const vectorConfig = {
+					...baseConfig,
+					indexName,
+					embeddingNodeProperty: 'embedding',
+					textNodeProperty: 'text',
+					searchType: searchType as 'vector' | 'hybrid',
+				};
+
+				const vectorStore = await initializeVectorStoreWithFallback(embeddings, vectorConfig);
+
+				try {
 					if (operation === 'similaritySearch') {
 						const queryText = this.getNodeParameter('queryText', 0) as string;
 						const k = this.getNodeParameter('k', 0, 4) as number;
@@ -752,7 +818,7 @@ export class Neo4j implements INodeType {
 			}
 
 			if (resource === 'graphDb') {
-				const graph = await Neo4jGraph.initialize(config);
+				const graph = await initializeGraphWithFallback(baseConfig);
 
 				try {
 					if (operation === 'getSchema') {
@@ -842,13 +908,16 @@ export class Neo4j implements INodeType {
 			description: 'Search for information in Neo4j database. Use this function to find information about topics.',
 			func: async (query: string) => {
 				// Get embeddings from input connection
-				const embeddings = (await this.getInputConnectionData('ai_embedding', 0)) as Embeddings;
+				const embeddings = (await this.getInputConnectionData(
+					'ai_embedding',
+					0,
+				)) as Embeddings;
 				
 				if (!embeddings) {
 					throw new ApplicationError('Embedding model is required for vector operations');
 				}
 
-				const config = {
+				const baseConfig: Neo4jConnectionConfig = {
 					url: credentials.uri as string,
 					username: credentials.username as string,
 					password: credentials.password as string,
@@ -856,14 +925,14 @@ export class Neo4j implements INodeType {
 				};
 
 				const vectorConfig = {
-					...config,
+					...baseConfig,
 					indexName: 'vector_index',
-					embeddingNodeProperty: "embedding",
-					textNodeProperties: ["text"],
-					searchType: 'vector' as "vector" | "hybrid",
+					embeddingNodeProperty: 'embedding',
+					textNodeProperty: 'text',
+					searchType: 'vector' as const,
 				};
 				
-				const vectorStore = await Neo4jVectorStore.fromExistingIndex(embeddings, vectorConfig);
+				const vectorStore = await initializeVectorStoreWithFallback(embeddings, vectorConfig);
 				
 				try {
 					const results = await vectorStore.similaritySearchWithScore(query, 5);
