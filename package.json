@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-neo4j-extended",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "n8n community node for Neo4j with vector search, graph database operations, and AI tool integration",
   "keywords": [
     "n8n-community-node-package",

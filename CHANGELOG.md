@@ -1,6 +1,16 @@
-# 🚀 Changelog - n8n-nodes-neo4j-extended# 🚀 Changelog - n8n-nodes-neo4j-extended
+# 🚀 Changelog - n8n-nodes-neo4j-extended
 
+## [1.0.4] - 2024-10-01
 
+### 📦 Release
+
+- Bumped package version to publish the 1.0.3 AI agent integration hotfix to npm.
+
+### 🔧 Improvements
+
+- Added automatic fallback from `neo4j://` routing URLs to direct `bolt://` connections when routing discovery fails.
+- Applied the same fallback strategy to vector store initialisation so AI tool operations remain available during routing outages.
+- Introduced shared helpers for detecting routing errors, ensuring retries only trigger for genuine discovery issues.
 
 ## [1.0.3] - 2024-09-29 - HOTFIX## [1.1.0] - 2024-09-29
 
