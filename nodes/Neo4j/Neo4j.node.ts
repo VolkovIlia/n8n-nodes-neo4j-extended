@@ -1,6 +1,8 @@
 import {
     IExecuteFunctions,
+	ILoadOptionsFunctions,
 	INodeExecutionData,
+	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
 	ISupplyDataFunctions,
@@ -12,6 +14,18 @@ import { Neo4jGraph } from '@langchain/community/graphs/neo4j_graph';
 import { Neo4jVectorStore } from '@langchain/community/vectorstores/neo4j_vector';
 import { DynamicTool } from '@langchain/core/tools';
 import type { Embeddings } from '@langchain/core/embeddings';
+import type { Driver as Neo4jDriver } from 'neo4j-driver';
+
+// Import vector index helper functions
+import {
+	checkIndexExists,
+	createVectorIndex,
+	deleteVectorIndex,
+	listVectorIndexes,
+	getIndexInfo,
+	detectEmbeddingDimension,
+	generateSuffixedIndexName,
+} from './neo4jVectorIndexHelpers';
 
 // Import logWrapper for proper AI tool GUI integration
 const { logWrapper } = require('@n8n/n8n-nodes-langchain/dist/utils/logWrapper');
@@ -64,7 +78,70 @@ async function initializeGraphWithFallback(config: Neo4jConnectionConfig) {
 async function initializeVectorStoreWithFallback(
         embeddings: Embeddings,
         config: Neo4jConnectionConfig,
+		autoCreate = true,
 ) {
+		const indexName = config.indexName as string || 'vector_index';
+		const nodeLabel = config.nodeLabel as string || 'Chunk';
+		const embeddingNodeProperty = config.embeddingNodeProperty as string || 'embedding';
+		
+		// Auto-create logic: check if index exists, create if missing with detected dimension
+		if (autoCreate) {
+			const neo4j = require('neo4j-driver');
+			const driver: Neo4jDriver = neo4j.driver(
+				config.url,
+				neo4j.auth.basic(config.username, config.password)
+			);
+
+			try {
+				// Step 1: Detect embedding dimension
+				const detectedDimension = await detectEmbeddingDimension(embeddings);
+
+				// Step 2: Check if index exists
+				const indexCheck = await checkIndexExists(driver, indexName, config.database as string | undefined);
+
+				if (!indexCheck.exists) {
+					// Index doesn't exist - create it with detected dimension
+					await createVectorIndex(
+						driver,
+						indexName,
+						nodeLabel,
+						embeddingNodeProperty,
+						detectedDimension,
+						'cosine', // Default similarity function
+						config.database as string | undefined
+					);
+				} else if (indexCheck.dimension && indexCheck.dimension !== detectedDimension) {
+					// Index exists but dimension mismatch - create suffixed index
+					const suffixedName = generateSuffixedIndexName(indexName, detectedDimension);
+					
+					// Check if suffixed index already exists
+					const suffixedCheck = await checkIndexExists(driver, suffixedName, config.database as string | undefined);
+					
+					if (!suffixedCheck.exists) {
+						await createVectorIndex(
+							driver,
+							suffixedName,
+							nodeLabel,
+							embeddingNodeProperty,
+							detectedDimension,
+							'cosine',
+							config.database as string | undefined
+						);
+					}
+					
+					// Update config to use suffixed index
+					config.indexName = suffixedName;
+				}
+				// If index exists with correct dimension, proceed normally
+			} catch (autoCreateError) {
+				// Log auto-create failure but don't block - proceed with fromExistingIndex
+				console.warn('Auto-create vector index failed:', autoCreateError);
+			} finally {
+				await driver.close();
+			}
+		}
+
+		// Original fallback logic for connection handling
         try {
                 return await Neo4jVectorStore.fromExistingIndex(embeddings, config);
         } catch (error) {
@@ -78,6 +155,56 @@ async function initializeVectorStoreWithFallback(
 }
 
 export class Neo4j implements INodeType {
+	methods = {
+		loadOptions: {
+			async getVectorIndexes(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				try {
+					// Get credentials
+					const credentials = await this.getCredentials('neo4jApi');
+					
+					// Initialize Neo4j driver
+					const neo4j = require('neo4j-driver');
+					const driver = neo4j.driver(
+						credentials.url as string,
+						neo4j.auth.basic(
+							credentials.username as string,
+							credentials.password as string
+						)
+					);
+
+					try {
+						// Get database parameter (optional)
+						const database = this.getCurrentNodeParameter('database', undefined) as string | undefined;
+
+						// Use existing helper to list indexes
+						const indexes = await listVectorIndexes(driver, database);
+
+						// Return empty message if no indexes found
+						if (indexes.length === 0) {
+							return [
+								{ name: 'No Indexes Found - Type Custom Name', value: '' }
+							];
+						}
+
+						// Convert to dropdown format
+						return indexes.map(index => ({
+							name: `${index.name} (${index.dimension}D, ${index.nodeLabel}.${index.property})`,
+							value: index.name,
+						}));
+					} finally {
+						await driver.close();
+					}
+				} catch (error) {
+					// Log error and return empty array
+					console.error('Failed to load vector indexes:', error);
+					return [
+						{ name: 'Error Loading Indexes - Type Custom Name', value: '' }
+					];
+				}
+			},
+		},
+	};
+
 	description: INodeTypeDescription = {
 		displayName: 'Neo4j',
 		name: 'neo4j',
@@ -171,6 +298,11 @@ export class Neo4j implements INodeType {
 						name: 'Graph Database',
 						value: 'graphDb',
 						description: 'Graph database operations with Cypher queries',
+					},
+					{
+						name: 'Vector Index Management',
+						value: 'vectorIndexManagement',
+						description: 'Create, delete, and manage vector indexes',
 					},
 				],
 				default: 'vectorStore',
@@ -276,19 +408,60 @@ export class Neo4j implements INodeType {
 				],
 				default: 'executeQuery',
 			},
+			// Vector Index Management Operations
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['vectorIndexManagement'],
+					},
+				},
+				options: [
+					{
+						name: 'Create Index',
+						value: 'createIndex',
+						description: 'Create a new vector index',
+						action: 'Create vector index',
+					},
+					{
+						name: 'Delete Index',
+						value: 'deleteIndex',
+						description: 'Delete an existing vector index',
+						action: 'Delete vector index',
+					},
+					{
+						name: 'List Indexes',
+						value: 'listIndexes',
+						description: 'List all vector indexes',
+						action: 'List vector indexes',
+					},
+					{
+						name: 'Get Index Info',
+						value: 'getIndexInfo',
+						description: 'Get detailed information about a vector index',
+						action: 'Get vector index info',
+					},
+				],
+				default: 'listIndexes',
+			},
 			// Vector Store Parameters
 			{
-				displayName: 'Index Name',
+				displayName: 'Index Name or ID',
 				name: 'indexName',
-				type: 'string',
-
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getVectorIndexes',
+				},
 				displayOptions: {
 					show: {
 						resource: ['vectorStore'],
 					},
 				},
-				default: 'vector_index',
-				description: 'The vector index name to use',
+				default: '',
+				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 			},
 			{
 				displayName: 'Query Text',
@@ -527,6 +700,92 @@ export class Neo4j implements INodeType {
 				],
 				default: 'structured',
 				description: 'Format of the schema output',
+			},
+			// Vector Index Management Parameters
+			{
+				displayName: 'Index Name',
+				name: 'indexNameManagement',
+				type: 'string',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['vectorIndexManagement'],
+						operation: ['createIndex', 'deleteIndex', 'getIndexInfo'],
+					},
+				},
+				default: 'my_vector_index',
+				description: 'Name of the vector index',
+			},
+			{
+				displayName: 'Node Label',
+				name: 'nodeLabel',
+				type: 'string',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['vectorIndexManagement'],
+						operation: ['createIndex'],
+					},
+				},
+				default: 'Chunk',
+				description: 'Label of the nodes to index',
+			},
+			{
+				displayName: 'Embedding Property',
+				name: 'embeddingProperty',
+				type: 'string',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['vectorIndexManagement'],
+						operation: ['createIndex'],
+					},
+				},
+				default: 'embedding',
+				description: 'Property containing the embedding vectors',
+			},
+			{
+				displayName: 'Dimension',
+				name: 'dimension',
+				type: 'number',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['vectorIndexManagement'],
+						operation: ['createIndex'],
+					},
+				},
+				default: 1536,
+				description: 'Vector dimension (e.g., 1536 for OpenAI, 768 for Sentence Transformers, 2048 for GigaChat)',
+				typeOptions: {
+					minValue: 1,
+					maxValue: 4096,
+				},
+			},
+			{
+				displayName: 'Similarity Function',
+				name: 'similarityFunction',
+				type: 'options',
+				displayOptions: {
+					show: {
+						resource: ['vectorIndexManagement'],
+						operation: ['createIndex'],
+					},
+				},
+				options: [
+					{
+						name: 'Cosine',
+						value: 'cosine',
+						description: 'Cosine similarity (recommended for most cases)',
+					},
+					{
+						name: 'Euclidean',
+						value: 'euclidean',
+						description: 'Euclidean distance',
+					},
+				],
+				default: 'cosine',
+				description: 'Similarity function to use for vector comparison',
 			},
 		],
 	};
@@ -874,6 +1133,115 @@ export class Neo4j implements INodeType {
 
 				} finally {
 					await graph.close();
+				}
+			}
+
+			// Vector Index Management Operations
+			if (resource === 'vectorIndexManagement') {
+				const neo4j = require('neo4j-driver');
+				const driver: Neo4jDriver = neo4j.driver(
+					baseConfig.url,
+					neo4j.auth.basic(baseConfig.username, baseConfig.password)
+				);
+
+				try {
+					if (operation === 'listIndexes') {
+						const indexes = await listVectorIndexes(driver, baseConfig.database as string | undefined);
+						// Convert to IDataObject[]
+						const indexesData = indexes.map(idx => ({
+							name: idx.name,
+							nodeLabel: idx.nodeLabel,
+							property: idx.property,
+							dimension: idx.dimension,
+							similarityFunction: idx.similarityFunction,
+							state: idx.state,
+						}));
+						return [this.helpers.returnJsonArray(indexesData)];
+					}
+
+					if (operation === 'getIndexInfo') {
+						const indexName = this.getNodeParameter('indexNameManagement', 0) as string;
+						const indexInfo = await getIndexInfo(driver, indexName, baseConfig.database as string | undefined);
+						
+						if (!indexInfo) {
+							throw new NodeOperationError(
+								this.getNode(),
+								`Vector index "${indexName}" not found`
+							);
+						}
+						
+						// Convert to IDataObject
+						const indexData = {
+							name: indexInfo.name,
+							nodeLabel: indexInfo.nodeLabel,
+							property: indexInfo.property,
+							dimension: indexInfo.dimension,
+							similarityFunction: indexInfo.similarityFunction,
+							state: indexInfo.state,
+						};
+						return [this.helpers.returnJsonArray([indexData])];
+					}
+
+					if (operation === 'createIndex') {
+						const indexName = this.getNodeParameter('indexNameManagement', 0) as string;
+						const nodeLabel = this.getNodeParameter('nodeLabel', 0) as string;
+						const embeddingProperty = this.getNodeParameter('embeddingProperty', 0) as string;
+						const dimension = this.getNodeParameter('dimension', 0) as number;
+						const similarityFunction = this.getNodeParameter('similarityFunction', 0, 'cosine') as 'cosine' | 'euclidean';
+
+						// Check if index already exists
+						const existsCheck = await checkIndexExists(driver, indexName, baseConfig.database as string | undefined);
+						
+						if (existsCheck.exists) {
+							throw new NodeOperationError(
+								this.getNode(),
+								`Vector index "${indexName}" already exists with dimension ${existsCheck.dimension}`
+							);
+						}
+
+						await createVectorIndex(
+							driver,
+							indexName,
+							nodeLabel,
+							embeddingProperty,
+							dimension,
+							similarityFunction,
+							baseConfig.database as string | undefined
+						);
+
+						return [this.helpers.returnJsonArray([{
+							success: true,
+							indexName,
+							nodeLabel,
+							embeddingProperty,
+							dimension,
+							similarityFunction,
+						}])];
+					}
+
+					if (operation === 'deleteIndex') {
+						const indexName = this.getNodeParameter('indexNameManagement', 0) as string;
+
+						// Check if index exists before deleting
+						const existsCheck = await checkIndexExists(driver, indexName, baseConfig.database as string | undefined);
+						
+						if (!existsCheck.exists) {
+							throw new NodeOperationError(
+								this.getNode(),
+								`Vector index "${indexName}" does not exist`
+							);
+						}
+
+						await deleteVectorIndex(driver, indexName, baseConfig.database as string | undefined);
+
+						return [this.helpers.returnJsonArray([{
+							success: true,
+							deletedIndex: indexName,
+						}])];
+					}
+
+				} finally {
+					await driver.close();
 				}
 			}
 

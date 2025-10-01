@@ -1,14 +1,16 @@
 {
   "name": "n8n-nodes-neo4j-extended",
-  "version": "1.0.4",
-  "description": "n8n community node for Neo4j with vector search, graph database operations, and AI tool integration",
+  "version": "1.1.0",
+  "description": "n8n community node for Neo4j with vector search, auto-create indexes, dynamic dropdowns, and enhanced security",
   "keywords": [
     "n8n-community-node-package",
     "neo4j",
     "graph-database",
     "vector-search",
     "langchain",
-    "ai-tools"
+    "ai-tools",
+    "embeddings",
+    "security"
   ],
   "license": "MIT",
   "homepage": "https://github.com/VolkovIlia/n8n-nodes-neo4j-extended",

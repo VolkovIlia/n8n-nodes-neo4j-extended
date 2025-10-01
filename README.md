@@ -13,15 +13,35 @@ This is an n8n community node that provides comprehensive Neo4j integration with
 [Credentials](#credentials)  
 [Compatibility](#compatibility)  
 [Usage](#usage)  
+[Security](#security)  
+[Vector Dimensions](#vector-dimensions)  
 [Resources](#resources)  
 
 ## Features
 
+- **Auto-Create Vector Indexes** 🚀 (NEW in v1.1.0)
+  - Automatically creates missing vector indexes with dimension detection
+  - Detects embedding dimensions from your data (1-2048)
+  - Handles dimension mismatches with suffixed index names (e.g., `my_index_2048`)
+  - No more "vector index does not exist" errors!
+
+- **Dynamic Index Selection** 📋 (NEW in v1.1.0)
+  - Dropdown menu to select existing vector indexes
+  - Auto-populated list of available indexes
+  - Works in "Add texts" and "Add documents" operations
+  - Prevents typos and shows what indexes you have
+
+- **Manual Vector Index Management** 🛠️ (NEW in v1.1.0)
+  - Create Index: Manually create vector indexes with custom parameters
+  - Delete Index: Remove vector indexes when no longer needed
+  - List Indexes: View all vector indexes in your database
+  - Get Index Info: Retrieve detailed information about specific indexes
+
 - **Vector Store Operations:**
   - Similarity Search: Search for similar vectors with optional metadata filtering
   - Hybrid Search: Combine vector and fulltext search capabilities
-  - Add Texts: Add new texts to the vector store
-  - Add Documents: Add document objects with metadata
+  - Add Texts: Add new texts to the vector store (with auto-create)
+  - Add Documents: Add document objects with metadata (with auto-create)
 
 - **Graph Database Operations:**
   - Execute Query: Run custom Cypher queries with parameters
@@ -34,6 +54,12 @@ This is an n8n community node that provides comprehensive Neo4j integration with
   - AI Embedding Support: Integrates with embedding models for vector operations
   - AI Tool Output: Provides ai_tool connection for agent workflows
 
+- **Security** 🔒 (NEW in v1.1.0)
+  - Comprehensive input validation prevents Cypher injection attacks
+  - Multi-layer security (regex + explicit checks + length limits)
+  - OWASP Top 10 compliant
+  - See [SECURITY.md](SECURITY.md) for details
+
 ## Installation
 
 Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
@@ -41,6 +67,50 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 ```bash
 npm install n8n-nodes-neo4j-extended
 ```
+
+## Security
+
+### v1.1.0 Security Enhancements
+
+This version includes important security improvements:
+
+- **Fixed**: Critical Cypher injection vulnerability (CVSS 9.8 → 2.0)
+- **Added**: Comprehensive input validation for all vector index operations
+- **Added**: Multi-layer defense against injection attacks
+- **Validated**: 10/10 penetration tests passed, OWASP Top 10 compliant
+
+**Security Features**:
+- Regex-based identifier validation (`/^[a-zA-Z_$][a-zA-Z0-9_$]*$/`)
+- Explicit backtick rejection (defense-in-depth)
+- DoS protection (255 character limit)
+- Type safety validation
+- Range validation for vector dimensions (1-2048)
+
+For security concerns, please see [SECURITY.md](SECURITY.md).
+
+## Vector Dimensions
+
+Neo4j vector indexes support dimensions from **1 to 2048** (Neo4j 5.11+).
+
+### Common Embedding Models
+
+| Model | Dimension | Similarity |
+|-------|-----------|------------|
+| OpenAI text-embedding-3-small | 1536 | Cosine |
+| OpenAI text-embedding-ada-002 | 1536 | Cosine |
+| GigaChat Embeddings | 2048 | Cosine |
+| Sentence Transformers (MiniLM) | 384 | Cosine |
+| Sentence Transformers (MPNet) | 768 | Cosine |
+| Cohere Embed v3 | 1024 | Cosine |
+
+**Note**: OpenAI `text-embedding-3-large` (3072D) exceeds Neo4j's 2048 limit. Consider dimension reduction or alternative models.
+
+### Similarity Functions
+
+- **Cosine**: Recommended for most text embeddings (measures angle between vectors)
+- **Euclidean**: Measures straight-line distance between vectors
+
+The plugin automatically detects dimensions from your embeddings and creates indexes accordingly.
 
 ## Operations
 
